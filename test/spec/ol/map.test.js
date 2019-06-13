@@ -4,8 +4,7 @@ import Map from '../../../src/ol/Map.js';
 import MapEvent from '../../../src/ol/MapEvent.js';
 import Overlay from '../../../src/ol/Overlay.js';
 import View from '../../../src/ol/View.js';
-import {LineString, Point} from '../../../src/ol/geom';
-import {TOUCH} from '../../../src/ol/has.js';
+import {LineString, Point} from '../../../src/ol/geom.js';
 import {focus} from '../../../src/ol/events/condition.js';
 import {defaults as defaultInteractions} from '../../../src/ol/interaction.js';
 import {get as getProjection} from '../../../src/ol/proj.js';
@@ -45,7 +44,7 @@ describe('ol.Map', function() {
     it('creates the viewport', function() {
       const map = new Map({});
       const viewport = map.getViewport();
-      const className = 'ol-viewport' + (TOUCH ? ' ol-touch' : '');
+      const className = 'ol-viewport' + ('ontouchstart' in window ? ' ol-touch' : '');
       expect(viewport.className).to.be(className);
     });
 
@@ -565,7 +564,6 @@ describe('ol.Map', function() {
         const interactions = defaultInteractions(options);
         expect(interactions.getLength()).to.eql(1);
         expect(interactions.item(0)).to.be.a(MouseWheelZoom);
-        expect(interactions.item(0).constrainResolution_).to.eql(false);
         expect(interactions.item(0).useAnchor_).to.eql(true);
         interactions.item(0).setMouseAnchor(false);
         expect(interactions.item(0).useAnchor_).to.eql(false);
@@ -601,21 +599,6 @@ describe('ol.Map', function() {
         const interactions = defaultInteractions(options);
         expect(interactions.getLength()).to.eql(1);
         expect(interactions.item(0)).to.be.a(PinchZoom);
-        expect(interactions.item(0).constrainResolution_).to.eql(false);
-      });
-    });
-
-    describe('set constrainResolution option', function() {
-      it('set constrainResolution option', function() {
-        options.pinchZoom = true;
-        options.mouseWheelZoom = true;
-        options.constrainResolution = true;
-        const interactions = defaultInteractions(options);
-        expect(interactions.getLength()).to.eql(2);
-        expect(interactions.item(0)).to.be.a(PinchZoom);
-        expect(interactions.item(0).constrainResolution_).to.eql(true);
-        expect(interactions.item(1)).to.be.a(MouseWheelZoom);
-        expect(interactions.item(1).constrainResolution_).to.eql(true);
       });
     });
 

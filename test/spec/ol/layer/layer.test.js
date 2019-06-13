@@ -49,6 +49,7 @@ describe('ol.layer.Layer', function() {
         opacity: 1,
         visible: true,
         managed: true,
+        hasOverlay: false,
         sourceState: 'ready',
         extent: undefined,
         zIndex: 0,
@@ -84,6 +85,7 @@ describe('ol.layer.Layer', function() {
         opacity: 0.5,
         visible: false,
         managed: true,
+        hasOverlay: false,
         sourceState: 'ready',
         extent: undefined,
         zIndex: 10,
@@ -94,6 +96,16 @@ describe('ol.layer.Layer', function() {
       layer.dispose();
     });
 
+    it('accepts a custom render function', function() {
+      let called = false;
+      const layer = new Layer({
+        render: function() {
+          called = true;
+        }
+      });
+      layer.render();
+      expect(called).to.eql(true);
+    });
   });
 
   describe('visibleAtResolution', function() {
@@ -172,6 +184,7 @@ describe('ol.layer.Layer', function() {
         opacity: 0.33,
         visible: false,
         managed: true,
+        hasOverlay: false,
         sourceState: 'ready',
         extent: undefined,
         zIndex: 10,
@@ -188,6 +201,7 @@ describe('ol.layer.Layer', function() {
         opacity: 0,
         visible: false,
         managed: true,
+        hasOverlay: false,
         sourceState: 'ready',
         extent: undefined,
         zIndex: 0,
@@ -202,6 +216,7 @@ describe('ol.layer.Layer', function() {
         opacity: 1,
         visible: true,
         managed: true,
+        hasOverlay: false,
         sourceState: 'ready',
         extent: undefined,
         zIndex: 0,

@@ -4,6 +4,70 @@
 
 #### Backwards incompatible changes
 
+#### Removal of `TOUCH` constant from `ol/has`
+
+If you were previously using this constant, you can check if `'ontouchstart'` is defined in `window` instead.
+
+```js
+if ('ontouchstart' in window) {
+  // ...
+}
+```
+
+#### Removal of `GEOLOCATION` constant from `ol/has`
+
+If you were previously using this constant, you can check if `'geolocation'` is defined in `navigator` instead.
+
+```js
+if ('geolocation' in navigator) {
+  // ...
+}
+```
+
+#### Removal of CSS print rules
+
+The CSS media print rules were removed from the `ol.css` file. To get the previous behavior, use the following CSS:
+
+```css
+@media print {
+  .ol-control {
+    display: none;
+  }
+}
+```
+
+#### Removal of optional this arguments
+
+The optional this (i.e. opt_this) arguments were removed from the following methods.
+Please use closures, the es6 arrow function or the bind method to achieve this effect (Bind is explained here:
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/bind).
+
+* `forEachCorner` in `ol/extent`
+* `LRUCache#forEach`
+* `RBush#forEach` and `RBush#forEachInExtent`
+
+##### The `setCenter`, `setZoom`, `setResolution` and `setRotation` methods on `ol/View` do not bypass constraints anymore
+
+Previously, these methods allowed setting values that were inconsistent with the given view constraints.
+This is no longer the case and all changes to the view state now follow the same logic:
+target values are provided and constraints are applied on these to determine the actual values to be used.
+
+##### Removal of the `constrainResolution` option on `View.fit`, `PinchZoom`, `MouseWheelZoom` and `ol/interaction.js`
+
+The `constrainResolution` option is now only supported by the `View` class. A `View.setConstrainResolution` method was added as well.
+
+Generally, the responsibility of applying center/rotation/resolutions constraints was moved from interactions and controls to the `View` class.
+
+##### The view `extent` option now applies to the whole viewport
+
+Previously, this options only constrained the view *center*. This behaviour can still be obtained by specifying `constrainCenterOnly` in the view options.
+
+As a side effect, the view `rotate` method is gone and has been replaced with `adjustRotation` which takes a delta as input.
+
+##### The view is constrained so only one world is visible
+
+Previously, maps showed multiple worlds at low zoom levels. In addition, it used to be possible to pan off the north or south edge of the world.  Now, the view is restricted to show only one world, and you cannot pan off the edge. To get the previous behavior, configure the `ol/View` with `multiWorld: true`.
+
 ##### Removal of deprecated methods
 
 The `inherits` function that was used to inherit the prototype methods from one constructor into another has been removed.
@@ -66,6 +130,14 @@ If you were previously using `VectorTile` layers with `renderMode: 'vector'`, yo
 
 If you were previously using `Vector` layers with `renderMode: 'image'`, you have to remove this configuration option. Instead, use the new `ol/layer/VectorImage` layer with your `ol/source/Vector`.
 
+##### New declutter behavior
+
+If a map has more than one layer with `declutter` set to true, decluttering now considers all `Vector` and `VectorTile` layers, instead of decluttering each layer separately. Only `VectorImage` layers continue to be decluttered separately. The higher the z-index of a layer, the higher the priority of its decluttered items.
+
+Within a layer, the declutter order has changed. Previously, styles with a lower `zIndex` were prioritized over those with a higher `zIndex`. Now the opposite order is used.
+
+On vector layers, even if decluttered images or texts have a lower z-Index than polygons or lines, they will now be rendered on top of the polygons or lines. For vector tile layers, this was the case already in previous releases.
+
 ##### New `prerender` and `postrender` layer events replace old `precompose`, `render` and `postcompose` events
 
 If you were previously registering for `precompose` and `postcompose` events, you should now register for `prerender` and `postrender` events on layers.  Instead of the previous `render` event, you should now listen for `postrender`. Layers are no longer composed to a single Canvas element.  Instead, they are added to the map viewport as individual elements.
@@ -98,6 +170,58 @@ Due to the constraint above (layers can only be added to a single map), the over
 ##### The `ol/Graticule` has been replaced by `ol/layer/Graticule`
 
 Previously, a graticule was not a layer.  Now it is.  See the graticule example for details on how to add a graticule layer to your map.
+
+##### `ol/format/Feature` API change
+
+The `getLastExtent()` method, which was required for custom `tileLoadFunction`s in `ol/source/Vector`, has been removed because it is no longer needed (see below).
+
+##### `ol/VectorTile` API changes
+
+* Removal of the `getProjection()` and `setProjection()` methods. These were used in custom `tileLoadFunction`s on `ol/source/VectorTile`, which work differently now (see below).
+* Removal of the `getExtent()` and `setExtent()` methods. These were used in custom `tileLoadFunction`s on `ol/source/VectorTile`, which work differently now (see below).
+
+##### Custom tileLoadFunction on a VectorTile source needs changes
+
+Previously, applications needed to call `setProjection()` and `setExtent()` on the tile in a custom `tileLoadFunction` on `ol/source/VectorTile`. The format's `getLastExtent()` method was used to get the extent. All this is no longer needed. Instead, the `extent` (first argument to the loader function) and `projection` (third argument to the loader function) are simply passed as `extent` and `featureProjection` options to the format's `readFeatures()` method.
+
+Example for an old `tileLoadFunction`:
+
+```js
+function(tile, url) {
+  tile.setLoader(function() {
+    fetch(url).then(function(response) {
+      response.arrayBuffer().then(function(data) {
+        var format = tile.getFormat();
+        tile.setProjection(format.readProjection(data));
+        tile.setFeatures(format.readFeatures(data, {
+          // featureProjection is not required for ol/format/MVT
+          featureProjection: map.getView().getProjection()
+        }));
+        tile.setExtent(format.getLastExtent());
+      })
+    })
+  }
+});
+```
+
+This function needs to be changed to:
+
+```js
+function(tile, url) {
+  tile.setLoader(function(extent, resolution, projection) {
+    fetch(url).then(function(response) {
+      response.arrayBuffer().then(function(data) {
+        var format = tile.getFormat();
+        tile.setFeatures(format.readFeatures(data, {
+          // extent is only required for ol/format/MVT
+          extent: extent,
+          featureProjection: projection
+        }));
+      })
+    })
+  }
+});
+```
 
 ##### Drop of support for the experimental WebGL renderer
 

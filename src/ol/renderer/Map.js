@@ -3,13 +3,12 @@
  */
 import {abstract, getUid} from '../util.js';
 import Disposable from '../Disposable.js';
-import {listen, unlistenByKey} from '../events.js';
-import EventType from '../events/EventType.js';
 import {getWidth} from '../extent.js';
 import {TRUE} from '../functions.js';
 import {visibleAtResolution} from '../layer/Layer.js';
 import {shared as iconImageCache} from '../style/IconImageCache.js';
 import {compose as composeTransform, makeInverse} from '../transform.js';
+import {renderDeclutterItems} from '../render.js';
 
 /**
  * @abstract
@@ -30,15 +29,8 @@ class MapRenderer extends Disposable {
 
     /**
      * @private
-     * @type {!Object<string, import("./Layer.js").default>}
      */
-    this.layerRenderers_ = {};
-
-    /**
-     * @private
-     * @type {Object<string, import("../events.js").EventsKey>}
-     */
-    this.layerRendererListeners_ = {};
+    this.declutterTree_ = null;
 
   }
 
@@ -67,15 +59,6 @@ class MapRenderer extends Disposable {
       -viewState.center[0], -viewState.center[1]);
 
     makeInverse(pixelToCoordinateTransform, coordinateToPixelTransform);
-  }
-
-  /**
-   * Removes all layer renderers.
-   */
-  removeLayerRenderers() {
-    for (const key in this.layerRenderers_) {
-      this.removeLayerRendererByKey_(key).dispose();
-    }
   }
 
   /**
@@ -133,18 +116,24 @@ class MapRenderer extends Disposable {
 
     const layerStates = frameState.layerStatesArray;
     const numLayers = layerStates.length;
+    let declutteredFeatures;
+    if (this.declutterTree_) {
+      declutteredFeatures = this.declutterTree_.all().map(function(entry) {
+        return entry.value;
+      });
+    }
     let i;
     for (i = numLayers - 1; i >= 0; --i) {
       const layerState = layerStates[i];
       const layer = /** @type {import("../layer/Layer.js").default} */ (layerState.layer);
-      if (visibleAtResolution(layerState, viewResolution) && layerFilter.call(thisArg2, layer)) {
-        const layerRenderer = this.getLayerRenderer(layer);
+      if (layer.hasRenderer() && visibleAtResolution(layerState, viewResolution) && layerFilter.call(thisArg2, layer)) {
+        const layerRenderer = layer.getRenderer();
         const source = layer.getSource();
         if (layerRenderer && source) {
           const callback = forEachFeatureAtCoordinate.bind(null, layerState.managed);
           result = layerRenderer.forEachFeatureAtCoordinate(
             source.getWrapX() ? translatedCoordinate : coordinate,
-            frameState, hitTolerance, callback);
+            frameState, hitTolerance, callback, declutteredFeatures);
         }
         if (result) {
           return result;
@@ -192,35 +181,6 @@ class MapRenderer extends Disposable {
   }
 
   /**
-   * @param {import("../layer/Layer.js").default} layer Layer.
-   * @protected
-   * @return {import("./Layer.js").default} Layer renderer. May return null.
-   */
-  getLayerRenderer(layer) {
-    const layerKey = getUid(layer);
-    if (layerKey in this.layerRenderers_) {
-      return this.layerRenderers_[layerKey];
-    }
-
-    const renderer = layer.getRenderer();
-    if (!renderer) {
-      return null;
-    }
-
-    this.layerRenderers_[layerKey] = renderer;
-    this.layerRendererListeners_[layerKey] = listen(renderer, EventType.CHANGE, this.handleLayerRendererChange_, this);
-    return renderer;
-  }
-
-  /**
-   * @protected
-   * @return {Object<string, import("./Layer.js").default>} Layer renderers.
-   */
-  getLayerRenderers() {
-    return this.layerRenderers_;
-  }
-
-  /**
    * @return {import("../PluggableMap.js").default} Map.
    */
   getMap() {
@@ -228,35 +188,11 @@ class MapRenderer extends Disposable {
   }
 
   /**
-   * Handle changes in a layer renderer.
-   * @private
-   */
-  handleLayerRendererChange_() {
-    this.map_.render();
-  }
-
-  /**
-   * @param {string} layerKey Layer key.
-   * @return {import("./Layer.js").default} Layer renderer.
-   * @private
-   */
-  removeLayerRendererByKey_(layerKey) {
-    const layerRenderer = this.layerRenderers_[layerKey];
-    delete this.layerRenderers_[layerKey];
-
-    unlistenByKey(this.layerRendererListeners_[layerKey]);
-    delete this.layerRendererListeners_[layerKey];
-
-    return layerRenderer;
-  }
-
-  /**
    * Render.
-   * @abstract
    * @param {?import("../PluggableMap.js").FrameState} frameState Frame state.
    */
   renderFrame(frameState) {
-    abstract();
+    this.declutterTree_ = renderDeclutterItems(frameState, this.declutterTree_);
   }
 
   /**
@@ -268,21 +204,6 @@ class MapRenderer extends Disposable {
       frameState.postRenderFunctions.push(expireIconCache);
     }
   }
-
-  /**
-   * @param {!import("../PluggableMap.js").FrameState} frameState Frame state.
-   * @protected
-   */
-  scheduleRemoveUnusedLayerRenderers(frameState) {
-    const layerStatesMap = getLayerStatesMap(frameState.layerStatesArray);
-    for (const layerKey in this.layerRenderers_) {
-      if (!(layerKey in layerStatesMap)) {
-        frameState.postRenderFunctions.push(function() {
-          this.removeLayerRendererByKey_(layerKey).dispose();
-        }.bind(this));
-      }
-    }
-  }
 }
 
 
@@ -292,17 +213,6 @@ class MapRenderer extends Disposable {
  */
 function expireIconCache(map, frameState) {
   iconImageCache.expire();
-}
-
-/**
- * @param {Array<import("../layer/Layer.js").State>} layerStatesArray Layer states array.
- * @return {Object<string, import("../layer/Layer.js").State>} States mapped by layer uid.
- */
-function getLayerStatesMap(layerStatesArray) {
-  return layerStatesArray.reduce(function(acc, state) {
-    acc[getUid(state.layer)] = state;
-    return acc;
-  }, {});
 }
 
 export default MapRenderer;

@@ -38,7 +38,8 @@ class CanvasImageLayerRenderer extends CanvasLayerRenderer {
   /**
    * @inheritDoc
    */
-  prepareFrame(frameState, layerState) {
+  prepareFrame(frameState) {
+    const layerState = frameState.layerStatesArray[frameState.layerIndex];
     const pixelRatio = frameState.pixelRatio;
     const viewState = frameState.viewState;
     const viewResolution = viewState.resolution;
@@ -72,11 +73,12 @@ class CanvasImageLayerRenderer extends CanvasLayerRenderer {
   /**
    * @inheritDoc
    */
-  renderFrame(frameState, layerState) {
+  renderFrame(frameState, target) {
     const image = this.image_;
     const imageExtent = image.getExtent();
     const imageResolution = image.getResolution();
     const imagePixelRatio = image.getPixelRatio();
+    const layerState = frameState.layerStatesArray[frameState.layerIndex];
     const pixelRatio = frameState.pixelRatio;
     const viewState = frameState.viewState;
     const viewCenter = viewState.center;
@@ -101,13 +103,15 @@ class CanvasImageLayerRenderer extends CanvasLayerRenderer {
     );
     makeInverse(this.inversePixelTransform_, this.pixelTransform_);
 
+    this.useContainer(target, this.pixelTransform_, layerState.opacity);
+
     const context = this.context;
     const canvas = context.canvas;
 
     if (canvas.width != width || canvas.height != height) {
       canvas.width = width;
       canvas.height = height;
-    } else {
+    } else if (!this.containerReused) {
       context.clearRect(0, 0, width, height);
     }
 
@@ -138,8 +142,17 @@ class CanvasImageLayerRenderer extends CanvasLayerRenderer {
 
     this.preRender(context, frameState);
     if (dw >= 0.5 && dh >= 0.5) {
+      const opacity = layerState.opacity;
+      let previousAlpha;
+      if (opacity !== 1) {
+        previousAlpha = this.context.globalAlpha;
+        this.context.globalAlpha = opacity;
+      }
       this.context.drawImage(img, 0, 0, +img.width, +img.height,
         Math.round(dx), Math.round(dy), Math.round(dw), Math.round(dh));
+      if (opacity !== 1) {
+        this.context.globalAlpha = previousAlpha;
+      }
     }
     this.postRender(context, frameState);
 
@@ -147,17 +160,12 @@ class CanvasImageLayerRenderer extends CanvasLayerRenderer {
       context.restore();
     }
 
-    const opacity = layerState.opacity;
-    if (opacity !== parseFloat(canvas.style.opacity)) {
-      canvas.style.opacity = opacity;
-    }
-
     const canvasTransform = transformToString(this.pixelTransform_);
     if (canvasTransform !== canvas.style.transform) {
       canvas.style.transform = canvasTransform;
     }
 
-    return canvas;
+    return this.container;
 
   }
 

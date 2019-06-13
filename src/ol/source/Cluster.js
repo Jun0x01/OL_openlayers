@@ -76,7 +76,7 @@ class Cluster extends VectorSource {
      * @protected
      */
     this.geometryFunction = options.geometryFunction || function(feature) {
-      const geometry = /** @type {Point} */ (feature.getGeometry());
+      const geometry = feature.getGeometry();
       assert(geometry.getType() == GeometryType.POINT,
         10); // The default `geometryFunction` can only handle `Point` geometries
       return geometry;
@@ -140,7 +140,6 @@ class Cluster extends VectorSource {
     this.clear();
     this.cluster();
     this.addFeatures(this.features);
-    super.refresh();
   }
 
   /**

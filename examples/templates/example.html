@@ -78,7 +78,7 @@
     <header class="navbar" role="navigation">
       <div class="container">
         <div class="display-table pull-left" id="navbar-logo-container">
-          <a class="navbar-brand" href="./"><img src="./resources/logo-70x70.png">&nbsp;OpenLayers Examples</a>
+          <a class="navbar-brand" href="./"><img src="./resources/logo-70x70.png">&nbsp;OpenLayers</a>
         </div>
         <!-- menu items that get hidden below 768px width -->
         <nav class='collapse navbar-collapse navbar-responsive-collapse'>
@@ -122,14 +122,18 @@
           <a class="copy-button" id="copy-html-button" data-clipboard-target="#example-html-source"><i class="fa fa-clipboard"></i> Copy</a>
         </div>
         <pre><legend>index.html</legend><code id="example-html-source" class="language-markup">&lt;!DOCTYPE html&gt;
-&lt;html&gt;
+&lt;html lang="en"&gt;
   &lt;head&gt;
     &lt;title&gt;{{ title }}&lt;/title&gt;
     &lt;!-- The line below is only needed for old environments like Internet Explorer and Android 4.x --&gt;
     &lt;script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"&gt;&lt;/script&gt;{{#if extraHead.remote}}
-{{ indent extraHead.remote spaces=4 }}{{/if}}{{#if css.source}}
+{{ indent extraHead.remote spaces=4 }}{{/if}}
     &lt;style&gt;
-{{ indent css.source spaces=6 }}    &lt;/style&gt;{{/if}}
+      .map {
+        width: 100%;
+        height:400px;
+      }
+{{#if css.source}}{{ indent css.source spaces=6 }}{{/if}}    &lt;/style&gt;
   &lt;/head&gt;
   &lt;body&gt;
 {{ indent contents spaces=4 }}    &lt;script src="index.js"&gt;&lt;/script&gt;
